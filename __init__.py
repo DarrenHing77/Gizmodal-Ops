@@ -20,10 +20,8 @@
 # ##### END GPL LICENSE BLOCK #####
 
 import bpy
-
-from bpy.types import (
-    KeyMapItem
-)
+from bpy.types import KeyMapItem
+from bpy.app.handlers import persistent
 
 from . import (
     operators,
@@ -52,94 +50,93 @@ modules = (
 )
 
 
+@persistent
+def delayed_register_keymap(dummy=None):
+    print("Gizmodal Ops: Running delayed keymap registration")
+    register_keymap()
+
+
 def register_keymap(*args):
-    wm = bpy.context.window_manager  # Get the window manager context
+    print("Gizmodal Ops: Bruteforce keymap scan")
+    wm = bpy.context.window_manager
+    kc = wm.keyconfigs.user or wm.keyconfigs.default
+    success_count = 0
 
-    # ! The 3D View keymap is not needed in Blender 4.0 and newer.
-    # ! It is there, to work with legacy Blender versions (3.x and older)
-    keymaps = ["3D View", "Pose", "Object Mode", "Curve", "Curves",
-               "Mesh", "Armature", "Metaball", "Lattice", "UV Editor"]
-
-    for map in keymaps:
-        # Try to get the active keymap for the current map name.
-        active_km = wm.keyconfigs.active.keymaps.get(map, None)
-
-        if not active_km:
-            print(f"Gizmodal Ops Register - Warning: Key {map} not found.")
-            continue
-
-        find_km_item = active_km.keymap_items.find_from_operator
-
-        # Iterate over all keymap items defined in operators.
+    for km in kc.keymaps:
         for idname, operator in operators.keymap:
-            # Get the Keymap Item from the keymap by searching for the original Operator.
-            kmi: KeyMapItem = find_km_item(idname, include={"KEYBOARD"})
-
-            # If the Keymap Item is not None, rewrite the Operator to the corresponding Gizmodal Ops Operator.
-            while kmi:
+            matches = [kmi for kmi in km.keymap_items if kmi.idname == idname]
+            if not matches:
+                continue
+            for kmi in matches:
+                print(f"Rewriting {kmi.idname} to {operator.bl_idname} in keymap: {km.name}")
                 kmi.idname = operator.bl_idname
+                success_count += 1
 
-                # Repeat, until every Keymap Item is rewritten
-                kmi = find_km_item(idname, include={"KEYBOARD"})
+    print(f"Gizmodal Ops: Bruteforce rewrite completed. {success_count} ops replaced.")
 
 
 def unregister_keymap(*args):
-    wm = bpy.context.window_manager  # Get the window manager context
+    print("Gizmodal Ops: Bruteforce keymap restore")
+    wm = bpy.context.window_manager
+    kc = wm.keyconfigs.user or wm.keyconfigs.default
+    restore_count = 0
 
-    keymaps = ["3D View", "UV Editor"]
-
-    for map in keymaps:
-        # Try to get the active keymap for the current map name.
-        active_km = wm.keyconfigs.active.keymaps.get(map, None)
-
-        if not active_km:
-            print(f"Gizmodal Ops Unregister - Warning: Key {map} not found.")
-            continue
-
-        find_km_item = active_km.keymap_items.find_from_operator
-
-        # Iterate over all keymap items defined in operators.
+    for km in kc.keymaps:
         for idname, operator in operators.keymap:
-            # Get the Keymap Item from the keymap by searching for the Gizmodal Ops Operator.
-            kmi: KeyMapItem = find_km_item(
-                operator.bl_idname, include={"KEYBOARD"})
-
-            # If the Keymap Item is not None, rewrite the Operator to the original Operator.
-            while kmi:
+            matches = [kmi for kmi in km.keymap_items if kmi.idname == operator.bl_idname]
+            if not matches:
+                continue
+            for kmi in matches:
+                print(f"Restoring {kmi.idname} to {idname} in keymap: {km.name}")
                 kmi.idname = idname
+                restore_count += 1
 
-                # Repeat, until every Keymap Item is rewritten
-                kmi = find_km_item(operator.bl_idname, include={"KEYBOARD"})
+    print(f"Gizmodal Ops: Bruteforce restore completed. {restore_count} ops restored.")
+
+
+
+# Optional dev reload op
+class DH_OT_reload_gizmodal_keymap(bpy.types.Operator):
+    bl_idname = "dh.reload_gizmodal_keymap"
+    bl_label = "Reload Gizmodal Keymaps"
+    bl_description = "Force reload keymaps manually"
+
+    def execute(self, context):
+        unregister_keymap()
+        register_keymap()
+        self.report({'INFO'}, "Gizmodal keymaps reloaded.")
+        return {'FINISHED'}
 
 
 def register():
-    # Register all modules.
+    print("Gizmodal Ops: Beginning registration")
     for mod in modules:
         mod.register()
 
-    # Since Blender doesn't load the keymaps before registering,
-    # try to register the keymap 0.1 seconds after Blender loaded properly.
-    bpy.app.timers.register(
-        register_keymap, first_interval=0.1, persistent=True)
+    try:
+        register_keymap()
+    except Exception as e:
+        print(f"Gizmodal Ops: Immediate keymap registration failed: {e}")
+
+    if delayed_register_keymap not in bpy.app.handlers.load_post:
+        bpy.app.handlers.load_post.append(delayed_register_keymap)
+
+    bpy.utils.register_class(DH_OT_reload_gizmodal_keymap)
+
+    print("Gizmodal Ops: Registration complete")
 
 
 def unregister():
-    # Unregister all modules.
-    for mod in modules:
-        mod.unregister()
+    print("Gizmodal Ops: Beginning unregistration")
 
-    # Try to unregister the "Register Keymap" timer, in case it still is registered.
-    try:
-        bpy.app.timers.unregister(register_keymap)
-    except Exception as e:
-        error_message = str(e).lower().replace('error', 'Warning')
-        print(
-            f"Gizmodal Ops Unregister - {error_message}")
+    if delayed_register_keymap in bpy.app.handlers.load_post:
+        bpy.app.handlers.load_post.remove(delayed_register_keymap)
 
-    # Unregister the keymap, so no issues occur after uninstalling Gizmodal Ops.
     unregister_keymap()
 
+    bpy.utils.unregister_class(DH_OT_reload_gizmodal_keymap)
 
-# Allow running the script inside of Blenders text editor.
-if __name__ == "__main__":
-    register()
+    for mod in reversed(modules):
+        mod.unregister()
+
+    print("Gizmodal Ops: Unregistration complete")
