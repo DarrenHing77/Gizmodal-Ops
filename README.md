@@ -1,6 +1,6 @@
 # Gizmodal-Ops
 
-** This fork was to fix keymap issues with later Blender version. Tested on 4.4**
+#This fork was to fix keymap issues with later Blender version. Tested on 4.4
 
 Gizmodal Ops takes the Gizmo workflow from other 3D software (tap a key to show the transform, rotation or scale gizmo) and blends this seamlessly with Blender's Modal workflow (for precise transforms, rotations and scaling).
 
