@@ -1,5 +1,7 @@
 # Gizmodal-Ops
 
+** This fork was to fix keymap issues with later Blender version. Tested on 4.4**
+
 Gizmodal Ops takes the Gizmo workflow from other 3D software (tap a key to show the transform, rotation or scale gizmo) and blends this seamlessly with Blender's Modal workflow (for precise transforms, rotations and scaling).
 
 Gizmodal Ops "listens" to your keystrokes and changes the workflow depending on your input. For example, a single key press keeps the Gizmo visible, but multiple key presses changes your scene to a Modal workflow. (Click the [video link](https://www.youtube.com/watch?v=fbHcUv9B2BI) for a better explanation on how this works).
