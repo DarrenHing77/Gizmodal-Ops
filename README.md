@@ -10,7 +10,7 @@ This harmonised workflow is perfect for people coming from other 3D programs wit
 
 Using Gizmodal Ops is a much more intuitive way of working which you will need to experience to understand and appreciate fully.
 
-**For Blender 2.83 and above.**
+**For Blender 4 and above.**
 
 Features:
 - Intuitively switches between workflows.
